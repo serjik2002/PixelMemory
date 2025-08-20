@@ -33,8 +33,8 @@ public class PixelFieldModel : MonoBehaviour
 
     private void Start()
     {
-        //InitializeField();
-        InitializeFromArray(pixelGrid);
+        InitializeField();
+        //InitializeFromArray(pixelGrid);
     }
 
     public void InitializeField()

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PixelFieldView : MonoBehaviour
 {
@@ -7,8 +8,6 @@ public class PixelFieldView : MonoBehaviour
     [SerializeField] Transform _pixelContainer;
     
     private Pixel[,] _pixels;
-
-    
 
     private void Start()
     {
@@ -19,6 +18,15 @@ public class PixelFieldView : MonoBehaviour
     private void InitializeField()
     {
         _pixels = new Pixel[_pixelFieldModel.Rows, _pixelFieldModel.Cols];
+        GridLayoutGroup gridLayoutGroup = gameObject.GetComponent<GridLayoutGroup>();
+        RectTransform rectTransform = gameObject.GetComponent<RectTransform>();
+
+        float fieldWidth = rectTransform.rect.width;
+        float fieldHeight = rectTransform.rect.height;
+
+        float cellWidth = fieldWidth / _pixelFieldModel.Cols;
+        float cellHeight = fieldHeight / _pixelFieldModel.Rows;
+        gridLayoutGroup.cellSize = new Vector2(cellWidth, cellHeight);
 
         print("Initializing Pixel Field View");
         for (int row = 0; row < _pixelFieldModel.Rows; row++)

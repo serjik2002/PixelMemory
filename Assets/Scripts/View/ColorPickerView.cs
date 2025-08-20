@@ -13,7 +13,7 @@ public class ColorPickerView : MonoBehaviour
 
     public PixelColorType ColorType => _colorType;
 
-    private void Start()
+    private void Awake()
     {
         _model.OnModelInitialized.AddListener(Initialize);
         _model.OnColorChanged.AddListener(UpdateSelectedColor);
@@ -22,7 +22,7 @@ public class ColorPickerView : MonoBehaviour
     {
         _colorCircle.color = ColorData.ColorMap[_colorType];
         UpdateSelectedColor();
-
+        print("ColorPickerView is Initialized");
     }
 
     public void UpdateSelectedColor()

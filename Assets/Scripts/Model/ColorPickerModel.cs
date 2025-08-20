@@ -14,11 +14,11 @@ public class ColorPickerModel : MonoBehaviour
 
     private void Start()
     {
-        ChangeColor(_defaultColor);
+        ChangeSelectedColor(_defaultColor);
         OnModelInitialized.Invoke();
     }
 
-    public void ChangeColor(PixelColorType newColor)
+    public void ChangeSelectedColor(PixelColorType newColor)
     {
         if (_selectedColor != newColor)
         {

@@ -29,10 +29,10 @@ public class ColorPickerController : MonoBehaviour
 
         foreach (var result in results)
         {
-            if (result.gameObject.TryGetComponent<ColorPickerView>(out var colorView))
+            if (result.gameObject.TryGetComponent(out ColorPickerView colorView))
             {
                 // Берем цвет из view и передаем в модель
-                _model.ChangeColor(colorView.ColorType);
+                _model.ChangeSelectedColor(colorView.ColorType);
                 break; // только первый попавшийся
             }
         }
