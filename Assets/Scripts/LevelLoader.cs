@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 
@@ -21,7 +20,7 @@ public class LevelLoader : MonoBehaviour
     public void LoadLevel(int levelIndex)
     {
         // Формируем путь к Resources без расширения .json
-        string fileName = $"Levels/level_{levelIndex}";
+        string fileName = $"Levels/level_{levelIndex}.";
 
         TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
 
