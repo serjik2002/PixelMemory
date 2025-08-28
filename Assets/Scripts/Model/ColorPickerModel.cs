@@ -25,5 +25,6 @@ public class ColorPickerModel : MonoBehaviour
             _selectedColor = newColor;
             OnColorChanged.Invoke();
         }
+        Debug.Log(_selectedColor);
     }
 }

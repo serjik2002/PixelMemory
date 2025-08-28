@@ -3,7 +3,6 @@ using Newtonsoft.Json;
 
 public class LevelLoader : MonoBehaviour
 {
-    public string fileName = "level1.json";
     private LevelConfig loadedLevel;
 
     void Start()
@@ -13,16 +12,15 @@ public class LevelLoader : MonoBehaviour
         // Пример использования
         Debug.Log($"Загружен уровень: {loadedLevel.level}");
         Debug.Log($"Размер: {loadedLevel.gridSize.rows} x {loadedLevel.gridSize.cols}");
-        Debug.Log($"Цвет в (0,0): {loadedLevel.colors[0][0]}");
-        Debug.Log($"Цвет в (0,0): {loadedLevel.colors[0][0]}");
     }
 
     public void LoadLevel(int levelIndex)
     {
         // Формируем путь к Resources без расширения .json
-        string fileName = $"Levels/level_{levelIndex}.";
+        string fileName = $"Levels/level_{levelIndex}";
 
         TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
+        
 
         if (jsonFile != null)
         {
@@ -37,3 +35,5 @@ public class LevelLoader : MonoBehaviour
         }
     }
 }
+
+//TODO:

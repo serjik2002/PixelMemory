@@ -3,16 +3,17 @@ using UnityEngine.UI;
 
 public class PixelFieldView : MonoBehaviour
 {
-    [SerializeField] private PixelFieldModel _pixelFieldModel;
     [SerializeField] private GameObject _pixelPrefab;
     [SerializeField] Transform _pixelContainer;
     
+    private PixelFieldModel _pixelFieldModel;
     private Pixel[,] _pixels;
 
-    private void Start()
+    public void Bind(PixelFieldModel model)
     {
-        _pixelFieldModel.OnModelInitialized.AddListener(InitializeField);
-        _pixelFieldModel.OnPixelChanged.AddListener(UpdatePixel);
+        _pixelFieldModel = model;
+        InitializeField();
+        _pixelFieldModel.OnPixelChanged += UpdatePixel;
     }
 
     private void InitializeField()
@@ -28,7 +29,7 @@ public class PixelFieldView : MonoBehaviour
         float cellHeight = fieldHeight / _pixelFieldModel.Rows;
         gridLayoutGroup.cellSize = new Vector2(cellWidth, cellHeight);
 
-        print("Initializing Pixel Field View");
+        Debug.Log("Initializing Pixel Field View");
         for (int row = 0; row < _pixelFieldModel.Rows; row++)
         {
             for (int col = 0; col < _pixelFieldModel.Cols; col++)

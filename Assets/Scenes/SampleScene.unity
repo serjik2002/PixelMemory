@@ -206,7 +206,7 @@ GameObject:
   - component: {fileID: 169725268}
   - component: {fileID: 169725267}
   - component: {fileID: 169725266}
-  - component: {fileID: 169725270}
+  - component: {fileID: 169725269}
   m_Layer: 5
   m_Name: DrawField
   m_TagString: Untagged
@@ -295,7 +295,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 169725264}
   m_CullTransparentMesh: 1
---- !u!114 &169725270
+--- !u!114 &169725269
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -307,7 +307,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef0f0ba18db740e40acc0226e9e2ab67, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _pixelFieldModel: {fileID: 652875940}
   _pixelPrefab: {fileID: 717824347662173884, guid: ff3f7271356db8b40a6a55c083bf4aed, type: 3}
   _pixelContainer: {fileID: 169725265}
 --- !u!1 &214770808
@@ -1202,36 +1201,14 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 652875941}
-  - component: {fileID: 652875940}
   - component: {fileID: 652875942}
   m_Layer: 5
-  m_Name: PixelFieldModel
+  m_Name: PixelFieldController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &652875940
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652875939}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e9993b1a30741848b9d19fafd743cf2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _rows: 10
-  _cols: 10
-  _colorPickerModel: {fileID: 368725332}
-  OnPixelChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  OnModelInitialized:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!4 &652875941
 Transform:
   m_ObjectHideFlags: 0
@@ -1259,9 +1236,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d396c8aa6ca8b8d4798abd12d6feee6d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _pixelFieldModel: {fileID: 652875940}
   _raycaster: {fileID: 2068511865}
   _eventSystem: {fileID: 438799121}
+  _colorPickerModel: {fileID: 368725332}
+  _pixelFieldView: {fileID: 169725269}
 --- !u!1 &663073343
 GameObject:
   m_ObjectHideFlags: 0
@@ -1951,7 +1929,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1731253722
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1985,13 +1963,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -6185343655787597505, guid: ee752b738bd552e41b988dfcaf06e0cd, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2585,7 +2563,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2068846845}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 913dac7a1a62c5c4aa88a3b25aa681d7, type: 3}
   m_Name: 
