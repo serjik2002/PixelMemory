@@ -1,4 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
+
+[System.Serializable]
+public class LevelConfigWrapper
+{
+    public List<LevelConfig> levels;
+}
 
 [System.Serializable]
 public class GridSize
@@ -10,7 +17,7 @@ public class GridSize
 [System.Serializable]
 public class LevelConfig
 {
-    public int level;
+    public int levelId;
     public GridSize gridSize;
-    public int[,] colors;
+    public PixelColorType[,] colors;
 }

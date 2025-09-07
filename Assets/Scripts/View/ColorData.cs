@@ -12,7 +12,7 @@ public static class ColorData
     { PixelColorType.Blue,       new Color(0.27f, 0.48f, 0.61f) }, // #457B9D 🔵
     { PixelColorType.Violet,     new Color(0.62f, 0.31f, 0.87f) }, // #9D4EDD 🟣
     { PixelColorType.White,      new Color(1.00f, 1.00f, 1.00f) }, // #FFFFFF ⚪
-    { PixelColorType.Black,      new Color(0.00f, 0.00f, 0.00f) }, // #000000 ⚫
+    { PixelColorType.Black,      new Color(0.2f, 0.2f, 0.2f) }, // #000000 ⚫
     { PixelColorType.Brown,      new Color(0.55f, 0.43f, 0.39f) }, // #8D6E63 🟤
     { PixelColorType.Purple,     new Color(0.49f, 0.34f, 0.76f) }  // #7E57C2 🟪
 };

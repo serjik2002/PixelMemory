@@ -3,8 +3,7 @@ using UnityEngine;
 
 public class LevelController : MonoBehaviour
 {
-    [SerializeField] RectTransform _field;
-     private LevelModel _levelModel;
+    private LevelModel _levelModel;
 
     public LevelModel LevelModel => _levelModel;
     
@@ -13,13 +12,8 @@ public class LevelController : MonoBehaviour
 
     public void LoadLevel(int id)
     {
-        LevelConfig config = LevelLoader.LoadLevel(id);
-        _levelModel = new LevelModel(config);
+        _levelModel = LevelLoadServices.Instance.GetLevel(id);
+        Debug.Log($"Level {id} loaded: {_levelModel.Rows}x{_levelModel.Cols}");
         OnLevelLoad?.Invoke();
-    }
-
-    public void ShowLevel(float delay)
-    {
-
     }
 }
