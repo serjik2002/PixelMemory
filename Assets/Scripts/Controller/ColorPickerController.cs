@@ -17,13 +17,11 @@ public class ColorPickerController : MonoBehaviour
 
     private void TrySelectColor()
     {
-        // Создаем PointerEventData по позиции мыши
         var pointerEventData = new PointerEventData(_eventSystem)
         {
             position = Input.mousePosition
         };
 
-        // Список всех объектов под мышью
         var results = new List<RaycastResult>();
         _raycaster.Raycast(pointerEventData, results);
 
@@ -31,9 +29,8 @@ public class ColorPickerController : MonoBehaviour
         {
             if (result.gameObject.TryGetComponent(out ColorPickerView colorView))
             {
-                // Берем цвет из view и передаем в модель
                 _model.ChangeSelectedColor(colorView.ColorType);
-                break; // только первый попавшийся
+                break;
             }
         }
     }

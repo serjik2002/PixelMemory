@@ -12,5 +12,5 @@ public class LevelConfig
 {
     public int level;
     public GridSize gridSize;
-    public int[][] colors;
+    public int[,] colors;
 }

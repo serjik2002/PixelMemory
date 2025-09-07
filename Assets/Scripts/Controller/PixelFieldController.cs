@@ -10,14 +10,23 @@ public class PixelFieldController : MonoBehaviour
 
     [SerializeField] private ColorPickerModel _colorPickerModel;
     [SerializeField] private PixelFieldView _pixelFieldView;
+    [SerializeField] private LevelController _levelController;
 
     private PixelFieldModel _pixelFieldModel;
 
-    private void Awake()
+    public PixelFieldModel PixelFieldModel => _pixelFieldModel;
+
+    private void Start()
     {
-        _pixelFieldModel = new PixelFieldModel(10, 10); // размеры поля
-        //_pixelFieldView = gameObject.GetComponent<PixelFieldView>();
-        _pixelFieldView.Bind(_pixelFieldModel);
+        _levelController.OnLevelLoad += Initialize;
+    }
+
+    private void Initialize()
+    {
+        int rows = _levelController.LevelModel.Rows;
+        int cols = _levelController.LevelModel.Cols;
+        _pixelFieldModel = new PixelFieldModel(rows, cols);
+        _pixelFieldView.Bind(_pixelFieldModel); 
     }
 
     private void Update()

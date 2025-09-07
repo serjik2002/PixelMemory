@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class PixelFieldModel
 {
-    private readonly int _rows;
-    private readonly int _cols;
+    private int _rows;
+    private int _cols;
     private PixelColorType[,] _pixelsData;
 
     public int Rows => _rows;
@@ -35,10 +35,10 @@ public class PixelFieldModel
         OnModelInitialized?.Invoke();
     }
 
-    public void InitializeFromArray(int[,] inputArray)
+    public void Initialize(int rows, int cols)
     {
-        if (inputArray.GetLength(0) != _rows || inputArray.GetLength(1) != _cols)
-            throw new ArgumentException("Input array size does not match field dimensions.");
+        _rows = rows;
+        _cols = cols;
 
         _pixelsData = new PixelColorType[_rows, _cols];
 
@@ -46,9 +46,7 @@ public class PixelFieldModel
         {
             for (int col = 0; col < _cols; col++)
             {
-                int value = inputArray[row, col];
-                PixelColorType color = (PixelColorType)value;
-                _pixelsData[row, col] = color;
+                _pixelsData[row, col] = PixelColorType.White;
             }
         }
 
@@ -61,7 +59,6 @@ public class PixelFieldModel
         {
             _pixelsData[row, col] = color;
             OnPixelChanged?.Invoke(row, col, color);
-            UnityEngine.Debug.Log("SetColor");
         }
     }
 
@@ -76,4 +73,5 @@ public class PixelFieldModel
     {
         return row >= 0 && row < _rows && col >= 0 && col < _cols;
     }
+
 }

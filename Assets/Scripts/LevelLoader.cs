@@ -1,22 +1,11 @@
 using UnityEngine;
 using Newtonsoft.Json;
 
-public class LevelLoader : MonoBehaviour
+public static class LevelLoader
 {
-    private LevelConfig loadedLevel;
 
-    void Start()
+    public static LevelConfig LoadLevel(int levelIndex)
     {
-        LoadLevel(1);
-
-        // Пример использования
-        Debug.Log($"Загружен уровень: {loadedLevel.level}");
-        Debug.Log($"Размер: {loadedLevel.gridSize.rows} x {loadedLevel.gridSize.cols}");
-    }
-
-    public void LoadLevel(int levelIndex)
-    {
-        // Формируем путь к Resources без расширения .json
         string fileName = $"Levels/level_{levelIndex}";
 
         TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
@@ -24,16 +13,14 @@ public class LevelLoader : MonoBehaviour
 
         if (jsonFile != null)
         {
-            loadedLevel = JsonConvert.DeserializeObject<LevelConfig>(jsonFile.text);
-            Debug.Log($"Уровень {loadedLevel.level} загружен!");
-            Debug.Log($"Размер: {loadedLevel.gridSize.rows} x {loadedLevel.gridSize.cols}");
-            Debug.Log($"Цвет в (0,0): {loadedLevel.colors[0][0]}");
+            var loadedLevel = JsonConvert.DeserializeObject<LevelConfig>(jsonFile.text);
+            return loadedLevel;
         }
         else
         {
             Debug.LogError("Файл не найден в Resources: " + fileName);
+            return null;
         }
     }
 }
 
-//TODO:
