@@ -74,11 +74,6 @@ public class PixelFieldModel
     public void Clear()
     {
         FillWithColor(PixelColorType.White);
-
-        // Уведомляем об очистке всего поля
-        //var colorsCopy = new PixelColorType[_rows, _cols];
-        //Array.Copy(_pixelsData, colorsCopy, _pixelsData.Length);
-        //OnFieldInitialized?.Invoke(new FieldData(_rows, _cols, colorsCopy));
     }
 
     private bool IsValidPosition(int row, int col)

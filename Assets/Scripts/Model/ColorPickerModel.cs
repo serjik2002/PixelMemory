@@ -1,7 +1,8 @@
+using System;
 using UnityEngine;
 using UnityEngine.Events;
 
-public class ColorPickerModel : MonoBehaviour
+public class ColorPickerModel : MonoBehaviour, IColorProvider
 {
     [SerializeField] private PixelColorType _defaultColor;
 
@@ -11,6 +12,19 @@ public class ColorPickerModel : MonoBehaviour
 
     public UnityEvent OnColorChanged;
     public UnityEvent OnModelInitialized;
+
+    event Action<PixelColorType> IColorProvider.OnColorChanged
+    {
+        add
+        {
+            throw new NotImplementedException();
+        }
+
+        remove
+        {
+            throw new NotImplementedException();
+        }
+    }
 
     private void Start()
     {

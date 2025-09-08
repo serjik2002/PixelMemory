@@ -5,32 +5,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 
-public struct PixelData
-{
-    public Vector2Int Position { get; }
-    public PixelColorType Color { get; }
-
-    public PixelData(Vector2Int position, PixelColorType color)
-    {
-        Position = position;
-        Color = color;
-    }
-}
-
-public struct FieldData
-{
-    public int Rows { get; }
-    public int Cols { get; }
-    public PixelColorType[,] Colors { get; }
-
-    public FieldData(int rows, int cols, PixelColorType[,] colors)
-    {
-        Rows = rows;
-        Cols = cols;
-        Colors = colors;
-    }
-}
-
 public class PixelFieldController : MonoBehaviour
 {
     [Header("Dependencies")]
@@ -79,25 +53,28 @@ public class PixelFieldController : MonoBehaviour
 
         var fieldData = new FieldData(rows, cols, colors);
         _pixelFieldView?.InitializeField(fieldData);
-        var levelFieldData = CreateFieldDataFromLevel();
-        _pixelFieldView.ShowFieldTemporarily(levelFieldData, 3f, OnFieldShowComplete);
     }
+
+    public void ShowLevel(float duration)
+    {
+        var levelFieldData = CreateFieldDataFromLevel();
+        _pixelFieldView.ShowFieldTemporarily(levelFieldData, duration, OnFieldShowComplete);
+    }
+
     private void OnFieldShowComplete()
     {
         Debug.Log("Поле скрыто, игра может начинаться");
-        // Здесь можно включить ввод или начать игру
     }
 
     private FieldData CreateFieldDataFromLevel()
     {
         var levelModel = _levelController.LevelModel;
-        // Предполагаю, что в levelModel есть массив с целевым полем
-        return new FieldData(levelModel.Rows, levelModel.Cols, levelModel.SolutionPixel); // или как там называется массив
+        return new FieldData(levelModel.Rows, levelModel.Cols, levelModel.SolutionPixel); 
     }
 
     private void CreateModel(int rows, int cols)
     {
-        UnsubscribeFromModelEvents(); // Отписываемся от старых событий
+        UnsubscribeFromModelEvents(); 
         _pixelFieldModel = new PixelFieldModel(rows, cols);
     }
 
@@ -106,7 +83,6 @@ public class PixelFieldController : MonoBehaviour
         if (_pixelFieldModel != null)
         {
             _pixelFieldModel.OnPixelChanged += HandlePixelChanged;
-            //_pixelFieldModel.OnFieldInitialized += HandleFieldInitialized;
             print("Подписался на события модели поля");
         }
     }
@@ -116,7 +92,6 @@ public class PixelFieldController : MonoBehaviour
         if (_pixelFieldModel != null)
         {
             _pixelFieldModel.OnPixelChanged -= HandlePixelChanged;
-            //_pixelFieldModel.OnFieldInitialized -= HandleFieldInitialized;
         }
     }
 
