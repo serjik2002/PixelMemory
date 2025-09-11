@@ -1,0 +1,1466 @@
+using UnityEngine;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using System.Threading.Tasks;
+
+public class LevelLoadServices : MonoBehaviour
+{
+    public static LevelLoadServices Instance { get; private set; }
+
+    private Dictionary<int, LevelModel> _levelMap = new Dictionary<int, LevelModel>();
+    
+    public Dictionary<int, LevelModel> Levels => _levelMap;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public async Task Initialize()
+    {
+        LoadLevels();
+    }
+
+    public void LoadLevels()
+    {
+        _levelMap.Clear();
+
+        TextAsset jsonFiles = Resources.Load<TextAsset>("Levels/levels");
+
+        var wrapper = JsonConvert.DeserializeObject<LevelConfigWrapper>(jsonFiles.text);
+
+        foreach (var level in wrapper.levels)
+        {
+            _levelMap.Add(level.levelId, new LevelModel(level));
+        }
+
+        Debug.Log($"Loaded {_levelMap.Count} levels");
+    }
+
+    public LevelModel GetLevel(int id)
+    {
+        if (_levelMap.TryGetValue(id, out var level))
+            return level;
+
+        Debug.LogError($"Level {id} not found!");
+        return null;
+    }
+}
+using System;
+using UnityEngine;
+
+public class PixelModel
+{
+    public Vector2Int Position { get; private set; }
+    public PixelColorType Color { get; private set; }
+
+    public event Action<PixelModel> OnColorChanged;
+
+    public PixelModel(Vector2Int position, PixelColorType initialColor = PixelColorType.White)
+    {
+        Position = position;
+        Color = initialColor;
+    }
+
+    public void SetColor(PixelColorType newColor)
+    {
+        if (Color == newColor) return;
+        Color = newColor;
+        OnColorChanged?.Invoke(this);
+    }
+
+}
+using System;
+using UnityEngine;
+using UnityEngine.UI;
+
+[RequireComponent(typeof(Image))]
+public class PixelView : MonoBehaviour
+{
+    private Image _image;
+
+    public Vector2Int Position {  get; private set; }
+
+    public event Action<PixelView> OnClicked;
+    public event Action<PixelView> OnHovered;
+
+
+    private void Awake()
+    {
+        _image = GetComponent<Image>();
+    }
+
+    public void Init(int row, int col, PixelColorType color)
+    {
+        Position = new Vector2Int(row, col);
+        SetColor(color);
+    }
+
+    public void Init(Vector2Int position, PixelColorType color)
+    {
+        Position = position;
+        SetColor(color);
+    }
+
+    public void SetAlpha(float alpha)
+    {
+        var color = _image.color;
+        color.a = Mathf.Clamp01(alpha);
+        _image.color = color;
+    }
+
+    public void SetColor(PixelColorType color)
+    {
+        _image.color = ColorData.ColorMap[color];
+    }
+
+    // Вызываются из UI EventTrigger или Button
+    public void OnClick() => OnClicked?.Invoke(this);
+    public void OnPointerEnter() => OnHovered?.Invoke(this);
+}
+using UnityEngine;
+
+public class TestLevelLoad : MonoBehaviour
+{
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Threading.Tasks;
+
+public class Bootstrapper : MonoBehaviour
+{
+    [SerializeField] private string _nextSceneName = "Core";
+
+    [Header("Services")]
+    [SerializeField] private LevelLoadServices _levelLoadServices;
+
+    async void Start()
+    {
+        await InitializeServices();
+
+        SceneManager.LoadScene(_nextSceneName);
+    }
+
+    private async Task InitializeServices()
+    {
+        await _levelLoadServices.Initialize();
+        await Task.Delay(500); // Simulate some async initialization work
+    }
+}
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using System.Collections.Generic;
+
+public class ColorPickerController : MonoBehaviour
+{
+    [SerializeField] private ColorPickerModel _model;
+    [SerializeField] private GraphicRaycaster _raycaster;
+    [SerializeField] private EventSystem _eventSystem;
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+            TrySelectColor();
+    }
+
+    private void TrySelectColor()
+    {
+        var pointerEventData = new PointerEventData(_eventSystem)
+        {
+            position = Input.mousePosition
+        };
+
+        var results = new List<RaycastResult>();
+        _raycaster.Raycast(pointerEventData, results);
+
+        foreach (var result in results)
+        {
+            if (result.gameObject.TryGetComponent(out ColorPickerView colorView))
+            {
+                _model.ChangeSelectedColor(colorView.ColorType);
+                break;
+            }
+        }
+    }
+}
+using System;
+using UnityEngine;
+
+public class LevelController : MonoBehaviour
+{
+    private LevelModel _levelModel;
+
+    public LevelModel LevelModel => _levelModel;
+    
+    public event Action OnLevelLoad;
+
+
+    public void LoadLevel(int id)
+    {
+        _levelModel = LevelLoadServices.Instance.GetLevel(id);
+        Debug.Log($"Level {id} loaded: {_levelModel.Rows}x{_levelModel.Cols}");
+        OnLevelLoad?.Invoke();
+    }
+}
+using System;
+using UnityEngine;
+
+public class PixelFieldController : MonoBehaviour
+{
+    [Header("Dependencies")]
+    [SerializeField] private PixelFieldView _pixelFieldView;
+    [SerializeField] private LevelController _levelController;
+
+    [Header("Services")]
+    [SerializeField] private InputHandler _inputHandler;
+    [SerializeField] private ColorPickerModel _colorProvider;
+
+    [Header("Settings")]
+    [SerializeField] private float _levelPreviewDuration = 3f;
+
+    private IPixelFieldModel _pixelFieldModel;
+    private IInputHandler _inputService;
+    private IColorProvider _colorService;
+    private IPixelFieldView _fieldView;
+
+    public IPixelFieldModel FieldModel => _pixelFieldModel;
+    public event Action<float> OnLevelCompleted;
+    public event Action OnFieldInitialized;
+
+    #region Unity Lifecycle
+
+    private void Awake()
+    {
+        InitializeDependencies();
+    }
+
+    private void Start()
+    {
+        SubscribeToEvents();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeFromEvents();
+        DisposeModel();
+    }
+
+    #endregion
+
+    #region Initialization
+
+    private void InitializeDependencies()
+    {
+        // Получаем сервисы из DI контейнера или находим на сцене
+        _inputService = _inputHandler ?? FindAnyObjectByType<InputHandler>();
+        _colorService = _colorProvider ?? FindAnyObjectByType<ColorPickerModel>();
+        _fieldView = _pixelFieldView;
+
+        ValidateDependencies();
+    }
+
+    private void ValidateDependencies()
+    {
+        if (_inputService == null)
+            Debug.LogError($"[{nameof(PixelFieldController)}] InputHandler not found!");
+
+        if (_colorService == null)
+            Debug.LogError($"[{nameof(PixelFieldController)}] ColorProvider not found!");
+
+        if (_fieldView == null)
+            Debug.LogError($"[{nameof(PixelFieldController)}] PixelFieldView not assigned!");
+
+        if (_levelController == null)
+            Debug.LogError($"[{nameof(PixelFieldController)}] LevelController not assigned!");
+    }
+
+    #endregion
+
+    #region Event Management
+
+    private void SubscribeToEvents()
+    {
+        // События уровня
+        if (_levelController != null)
+            _levelController.OnLevelLoad += HandleLevelLoad;
+
+        // События ввода
+        if (_inputService != null)
+        {
+            _inputService.OnPixelPaintRequested += HandlePixelPaintRequest;
+            _inputService.OnPixelHover += HandlePixelHover;
+        }
+    }
+
+    private void UnsubscribeFromEvents()
+    {
+        // События уровня
+        if (_levelController != null)
+            _levelController.OnLevelLoad -= HandleLevelLoad;
+
+        // События ввода
+        if (_inputService != null)
+        {
+            _inputService.OnPixelPaintRequested -= HandlePixelPaintRequest;
+            _inputService.OnPixelHover -= HandlePixelHover;
+        }
+
+        // События модели
+        UnsubscribeFromModelEvents();
+    }
+
+    private void SubscribeToModelEvents()
+    {
+        if (_pixelFieldModel != null)
+        {
+            _pixelFieldModel.OnPixelChanged += HandlePixelChanged;
+            _pixelFieldModel.OnFieldCleared += HandleFieldCleared;
+        }
+    }
+
+    private void UnsubscribeFromModelEvents()
+    {
+        if (_pixelFieldModel != null)
+        {
+            _pixelFieldModel.OnPixelChanged -= HandlePixelChanged;
+            _pixelFieldModel.OnFieldCleared -= HandleFieldCleared;
+        }
+    }
+
+    #endregion
+
+    #region Event Handlers
+
+    private void HandleLevelLoad()
+    {
+        var levelModel = _levelController.LevelModel;
+        if (levelModel == null)
+        {
+            Debug.LogError("Level model is null!");
+            return;
+        }
+
+        InitializeField(levelModel.Rows, levelModel.Cols);
+        //ShowLevelPreview(levelModel);
+    }
+
+    private void HandlePixelPaintRequest(Vector2Int position, PixelColorType color)
+    {
+        if (_pixelFieldModel?.IsValidPosition(position.x, position.y) == true)
+        {
+            _pixelFieldModel.SetColor(position.x, position.y, color);
+            CheckLevelCompletion();
+        }
+    }
+
+    private void HandlePixelHover(Vector2Int position)
+    {
+        // Можно добавить визуальную подсветку при наведении
+        // _fieldView?.HighlightPixel(position, true);
+    }
+
+    private void HandlePixelChanged(PixelData pixelData)
+    {
+        _fieldView?.UpdatePixel(pixelData);
+    }
+
+    private void HandleFieldCleared()
+    {
+        // Можно добавить дополнительную логику при очистке поля
+        Debug.Log("Field cleared");
+    }
+
+    #endregion
+
+    #region Field Management
+
+    private void InitializeField(int rows, int cols)
+    {
+        CreateFieldModel(rows, cols);
+
+        // Инициализируем представление
+        InitializeFieldView();
+
+        OnFieldInitialized?.Invoke();
+    }
+
+    private void CreateFieldModel(int rows, int cols)
+    {
+        DisposeModel();
+        _pixelFieldModel = new PixelFieldModel(rows, cols);
+        SubscribeToModelEvents();
+    }
+
+    private void InitializeFieldView()
+    {
+        if (_pixelFieldModel == null || _fieldView == null) return;
+
+        var fieldData = CreateFieldDataFromModel();
+        _fieldView.InitializeField(fieldData);
+    }
+
+    private void ShowLevelPreview(LevelModel levelModel)
+    {
+        if (_fieldView == null) return;
+
+        var levelFieldData = new FieldData(
+            levelModel.Rows,
+            levelModel.Cols,
+            levelModel.SolutionPixels
+        );
+
+        // Отключаем ввод на время показа уровня
+        SetInputEnabled(false);
+
+        _fieldView.ShowFieldTemporarily(
+            levelFieldData,
+            _levelPreviewDuration,
+            OnLevelPreviewComplete
+        );
+    }
+
+    private void OnLevelPreviewComplete()
+    {
+        SetInputEnabled(true);
+        Debug.Log("Level preview completed. Game can start!");
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private FieldData CreateFieldDataFromModel()
+    {
+        if (_pixelFieldModel == null)
+            throw new InvalidOperationException("Field model is null");
+
+        int rows = _pixelFieldModel.Rows;
+        int cols = _pixelFieldModel.Cols;
+
+        var colors = new PixelColorType[rows, cols];
+        for (int row = 0; row < rows; row++)
+        {
+            for (int col = 0; col < cols; col++)
+            {
+                colors[row, col] = _pixelFieldModel.GetColor(row, col);
+            }
+        }
+
+        return new FieldData(rows, cols, colors);
+    }
+
+    private void CheckLevelCompletion()
+    {
+        var levelModel = _levelController?.LevelModel;
+        if (levelModel == null || _pixelFieldModel == null) return;
+
+        var playerField = CreateFieldDataFromModel().Colors;
+
+        if (levelModel.CheckSolution(playerField))
+        {
+            var completionTime = Time.time; // Можно улучшить, добавив таймер
+            OnLevelCompleted?.Invoke(completionTime);
+            SetInputEnabled(false);
+            Debug.Log("Level completed!");
+        }
+    }
+
+    private void DisposeModel()
+    {
+        UnsubscribeFromModelEvents();
+        _pixelFieldModel = null;
+    }
+
+    #endregion
+
+    #region Public API
+
+    /// <summary>
+    /// Включает или отключает обработку пользовательского ввода
+    /// </summary>
+    public void SetInputEnabled(bool enabled)
+    {
+        _inputService?.SetEnabled(enabled);
+    }
+
+    /// <summary>
+    /// Очищает поле, заполняя его белыми пикселями
+    /// </summary>
+    public void ClearField()
+    {
+        _pixelFieldModel?.Clear();
+    }
+
+    /// <summary>
+    /// Устанавливает цвет конкретного пикселя
+    /// </summary>
+    public void SetPixelColor(int row, int col, PixelColorType color)
+    {
+        if (_pixelFieldModel?.IsValidPosition(row, col) == true)
+        {
+            _pixelFieldModel.SetColor(row, col, color);
+        }
+        else
+        {
+            Debug.LogWarning($"Invalid position: ({row}, {col})");
+        }
+    }
+
+    /// <summary>
+    /// Получает цвет пикселя по позиции
+    /// </summary>
+    public PixelColorType GetPixelColor(int row, int col)
+    {
+        return _pixelFieldModel?.GetColor(row, col) ?? PixelColorType.White;
+    }
+
+    /// <summary>
+    /// Показывает решение уровня на заданное время
+    /// </summary>
+    public void ShowLevelSolution(float duration = 3f)
+    {
+        var levelModel = _levelController?.LevelModel;
+        if (levelModel == null) return;
+
+        var solutionData = new FieldData(
+            levelModel.Rows,
+            levelModel.Cols,
+            levelModel.SolutionPixels
+        );
+
+        SetInputEnabled(false);
+        _fieldView?.ShowFieldTemporarily(solutionData, duration, () => SetInputEnabled(true));
+    }
+
+    /// <summary>
+    /// Получает процент выполнения текущего уровня
+    /// </summary>
+    public float GetCompletionPercentage()
+    {
+        var levelModel = _levelController?.LevelModel;
+        if (levelModel == null || _pixelFieldModel == null) return 0f;
+
+        var playerField = CreateFieldDataFromModel().Colors;
+        return levelModel.GetCompletionPercentage(playerField);
+    }
+
+    /// <summary>
+    /// Проверяет, решен ли уровень
+    /// </summary>
+    public bool IsLevelSolved()
+    {
+        var levelModel = _levelController?.LevelModel;
+        if (levelModel == null || _pixelFieldModel == null) return false;
+
+        var playerField = CreateFieldDataFromModel().Colors;
+        return levelModel.CheckSolution(playerField);
+    }
+
+    #endregion
+}
+using System.Collections.Generic;
+using UnityEngine;
+
+public static class ColorData
+{
+    public static Dictionary<PixelColorType, Color> ColorMap = new Dictionary<PixelColorType, Color>
+{
+    { PixelColorType.Red,        new Color(0.90f, 0.22f, 0.27f) }, // #E63946 ??
+    { PixelColorType.Orange,     new Color(0.96f, 0.64f, 0.38f) }, // #F4A261 ??
+    { PixelColorType.LightYellow,new Color(0.99f, 0.80f, 0.43f) }, // #FDCB6E ??
+    { PixelColorType.Green,      new Color(0.16f, 0.62f, 0.56f) }, // #2A9D8F ??
+    { PixelColorType.Blue,       new Color(0.27f, 0.48f, 0.61f) }, // #457B9D ??
+    { PixelColorType.Violet,     new Color(0.62f, 0.31f, 0.87f) }, // #9D4EDD ??
+    { PixelColorType.White,      new Color(1.00f, 1.00f, 1.00f) }, // #FFFFFF ?
+    { PixelColorType.Black,      new Color(0.2f, 0.2f, 0.2f) }, // #000000 ?
+    { PixelColorType.Brown,      new Color(0.55f, 0.43f, 0.39f) }, // #8D6E63 ??
+    { PixelColorType.Purple,     new Color(0.49f, 0.34f, 0.76f) }  // #7E57C2 ??
+};
+}
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[System.Serializable]
+public class LevelConfigWrapper
+{
+    public List<LevelConfig> levels;
+}
+
+[System.Serializable]
+public class GridSize
+{
+    public int rows;
+    public int cols;
+}
+
+[System.Serializable]
+public class LevelConfig
+{
+    public int levelId;
+    public GridSize gridSize;
+    public PixelColorType[,] colors; // Изменено с PixelColorType[,] на int[] для корректной JSON сериализации
+
+}
+
+public enum PixelColorType
+{
+    Red = 0,
+    Orange = 1,
+    LightYellow = 2,
+    Green = 3,
+    Blue = 4,
+    Violet = 5,
+    White = 6,
+    Black = 7,
+    Brown = 8,
+    Purple = 9
+}
+
+// Структуры данных для передачи информации между слоями
+public readonly struct PixelData : IEquatable<PixelData>
+{
+    public Vector2Int Position { get; }
+    public PixelColorType Color { get; }
+
+    public PixelData(Vector2Int position, PixelColorType color)
+    {
+        Position = position;
+        Color = color;
+    }
+
+    public bool Equals(PixelData other)
+    {
+        return Position.Equals(other.Position) && Color == other.Color;
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is PixelData other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Position, (int)Color);
+    }
+}
+
+public readonly struct FieldData
+{
+    public int Rows { get; }
+    public int Cols { get; }
+    public PixelColorType[,] Colors { get; }
+
+    public FieldData(int rows, int cols, PixelColorType[,] colors)
+    {
+        if (rows <= 0 || cols <= 0)
+            throw new ArgumentException("Rows and cols must be positive");
+
+        if (colors?.GetLength(0) != rows || colors?.GetLength(1) != cols)
+            throw new ArgumentException("Colors array dimensions don't match provided rows and cols");
+
+        Rows = rows;
+        Cols = cols;
+        Colors = colors;
+    }
+}
+using System;
+
+public interface IColorProvider
+{
+    PixelColorType SelectedColor { get; }
+    event Action<PixelColorType> OnColorChanged;
+}
+using System;
+using UnityEngine;
+
+public interface IInputHandler
+{
+    event Action<Vector2Int, PixelColorType> OnPixelPaintRequested;
+    event Action<Vector2Int> OnPixelHover;
+    void SetEnabled(bool enabled);
+}
+public interface ILevelRepository
+{
+    LevelModel GetLevel(int id);
+    bool HasLevel(int id);
+    int GetLevelCount();
+}
+using System;
+
+public interface IPixelFieldModel
+{
+    int Rows { get; }
+    int Cols { get; }
+    event Action<PixelData> OnPixelChanged;
+    event Action OnFieldCleared;
+
+    void SetColor(int row, int col, PixelColorType color);
+    PixelColorType GetColor(int row, int col);
+    void Clear();
+    bool IsValidPosition(int row, int col);
+    PixelModel[,] GetPixels();
+}
+using System;
+
+public interface IPixelFieldView
+{
+    void InitializeField(FieldData fieldData);
+    void UpdatePixel(PixelData pixelData);
+    void ShowFieldTemporarily(FieldData fieldData, float duration, Action onComplete = null);
+    void ClearField();
+}
+using UnityEngine;
+
+public interface IRaycastService
+{
+    bool TryGetComponentUnderPointer<T>(Vector2 screenPosition, out T component) where T : Component;
+}
+using System;
+using UnityEngine;
+
+public class InputHandler : MonoBehaviour, IInputHandler
+{
+    [Header("Dependencies")]
+    [SerializeField] private IRaycastService _raycastService;
+    [SerializeField] private IColorProvider _colorProvider;
+
+    [Header("Settings")]
+    [SerializeField] private bool _isEnabled = true;
+
+    public event Action<Vector2Int, PixelColorType> OnPixelPaintRequested;
+    public event Action<Vector2Int> OnPixelHover;
+
+    private bool _isDragging;
+    private Vector2Int _lastPaintedPixel = new Vector2Int(-1, -1);
+
+    private void Awake()
+    {
+        // Получаем зависимости если они не заданы
+        if (_raycastService == null)
+            _raycastService = FindAnyObjectByType<RaycastService>();
+
+        if (_colorProvider == null)
+            _colorProvider = FindAnyObjectByType<ColorPickerModel>();
+    }
+
+    private void Update()
+    {
+        if (!_isEnabled) return;
+
+        HandlePointerInput();
+    }
+
+    private void HandlePointerInput()
+    {
+#if UNITY_EDITOR || UNITY_STANDALONE
+        bool isDown = Input.GetMouseButtonDown(0);
+        bool isHeld = Input.GetMouseButton(0);
+        bool isUp = Input.GetMouseButtonUp(0);
+        Vector2 position = Input.mousePosition;
+#else
+    // Для тачей (телефон)
+    if (Input.touchCount == 0) return;
+
+    var touch = Input.GetTouch(0);
+    bool isDown = touch.phase == TouchPhase.Began;
+    bool isHeld = touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary;
+    bool isUp   = touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled;
+    Vector2 position = touch.position;
+#endif
+
+        if (isDown)
+        {
+            _isDragging = true;
+            _lastPaintedPixel = new Vector2Int(-1, -1);
+            TryPaintPixel(position);
+        }
+        else if (isHeld && _isDragging)
+        {
+            TryPaintPixel(position);
+        }
+        else if (isUp)
+        {
+            _isDragging = false;
+            _lastPaintedPixel = new Vector2Int(-1, -1);
+        }
+    }
+
+
+    private void TryPaintPixel(Vector2 pointerPosition)
+    {
+        if (_raycastService.TryGetComponentUnderPointer<PixelView>(pointerPosition, out var pixel))
+        {
+            var position = pixel.Position;
+
+            if (_isDragging && position == _lastPaintedPixel)
+                return;
+
+            _lastPaintedPixel = position;
+            OnPixelPaintRequested?.Invoke(position, _colorProvider.SelectedColor);
+        }
+    }
+
+
+    public void SetEnabled(bool enabled)
+    {
+        _isEnabled = enabled;
+
+        if (!enabled)
+        {
+            _isDragging = false;
+            _lastPaintedPixel = new Vector2Int(-1, -1);
+        }
+    }
+
+    // Дополнительные методы для настройки поведения
+    public void EnableDragPainting(bool enable)
+    {
+        // Можно добавить отдельную настройку для рисования перетаскиванием
+    }
+
+    private void OnDestroy()
+    {
+        // Очищаем события при уничтожении
+        OnPixelPaintRequested = null;
+        OnPixelHover = null;
+    }
+}
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+public class RaycastService : MonoBehaviour, IRaycastService
+{
+    [SerializeField] private GraphicRaycaster _raycaster;
+    [SerializeField] private EventSystem _eventSystem;
+
+    private readonly List<RaycastResult> _raycastResults = new List<RaycastResult>();
+
+    private void Awake()
+    {
+        // Автоматически находим компоненты если они не заданы
+        if (_raycaster == null)
+            _raycaster = FindAnyObjectByType<GraphicRaycaster>();
+
+        if (_eventSystem == null)
+            _eventSystem = FindAnyObjectByType<EventSystem>();
+    }
+
+
+    public bool TryGetComponentUnderPointer<T>(Vector2 screenPosition, out T component) where T : Component
+    {
+        component = null;
+        if (_raycaster == null || _eventSystem == null)
+            return false;
+
+        var pointerEventData = new PointerEventData(_eventSystem)
+        {
+            position = screenPosition
+        };
+
+        _raycastResults.Clear();
+        _raycaster.Raycast(pointerEventData, _raycastResults);
+
+        foreach (var result in _raycastResults)
+        {
+            if (result.gameObject.TryGetComponent<T>(out component))
+                return true;
+        }
+
+        return false;
+    }
+
+
+    // Дополнительный метод для получения всех компонентов определенного типа под мышью
+    public List<T> GetAllComponentsUnderMouse<T>() where T : Component
+    {
+        var components = new List<T>();
+
+        if (_raycaster == null || _eventSystem == null)
+            return components;
+
+        var pointerEventData = new PointerEventData(_eventSystem)
+        {
+            position = Input.mousePosition
+        };
+
+        _raycastResults.Clear();
+        _raycaster.Raycast(pointerEventData, _raycastResults);
+
+        foreach (var result in _raycastResults)
+        {
+            if (result.gameObject.TryGetComponent<T>(out var component))
+                components.Add(component);
+        }
+
+        return components;
+    }
+}
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using UnityEngine;
+using Newtonsoft.Json;
+
+// Сервис загрузки уровней
+public class LevelLoader
+{
+    public static async Task<LevelConfig> LoadLevelAsync(int levelIndex)
+    {
+        string fileName = $"Levels/level_{levelIndex}";
+
+        try
+        {
+            TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
+
+            if (jsonFile == null)
+            {
+                throw new ArgumentException($"Level file not found: {fileName}");
+            }
+
+            // Имитация асинхронной загрузки
+            await Task.Yield();
+
+            var loadedLevel = JsonConvert.DeserializeObject<LevelConfig>(jsonFile.text);
+
+            if (loadedLevel == null)
+            {
+                throw new InvalidOperationException($"Failed to deserialize level: {fileName}");
+            }
+
+            return loadedLevel;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error loading level {levelIndex}: {ex.Message}");
+            throw;
+        }
+    }
+
+    public static async Task<LevelConfigWrapper> LoadAllLevelsAsync()
+    {
+        try
+        {
+            TextAsset jsonFile = Resources.Load<TextAsset>("Levels/levels");
+
+            if (jsonFile == null)
+            {
+                throw new ArgumentException("Levels file not found: Levels/levels");
+            }
+
+            await Task.Yield();
+
+            var wrapper = JsonConvert.DeserializeObject<LevelConfigWrapper>(jsonFile.text);
+
+            if (wrapper?.levels == null)
+            {
+                throw new InvalidOperationException("Failed to deserialize levels wrapper");
+            }
+
+            return wrapper;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error loading all levels: {ex.Message}");
+            throw;
+        }
+    }
+}
+
+// Репозиторий для управления уровнями
+public class LevelRepository : MonoBehaviour, ILevelRepository
+{
+    public static LevelRepository Instance { get; private set; }
+
+    private readonly Dictionary<int, LevelModel> _levelMap = new Dictionary<int, LevelModel>();
+    private bool _isInitialized;
+
+    public event Action OnLevelsLoaded;
+    public event Action<string> OnLoadError;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public async Task InitializeAsync()
+    {
+        if (_isInitialized)
+        {
+            Debug.LogWarning("LevelRepository already initialized");
+            return;
+        }
+
+        try
+        {
+            await LoadLevelsAsync();
+            _isInitialized = true;
+            OnLevelsLoaded?.Invoke();
+            Debug.Log($"LevelRepository initialized with {_levelMap.Count} levels");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to initialize LevelRepository: {ex.Message}");
+            OnLoadError?.Invoke(ex.Message);
+            throw;
+        }
+    }
+
+    private async Task LoadLevelsAsync()
+    {
+        _levelMap.Clear();
+
+        var wrapper = await LevelLoader.LoadAllLevelsAsync();
+
+        foreach (var levelConfig in wrapper.levels)
+        {
+            try
+            {
+                var levelModel = new LevelModel(levelConfig);
+                _levelMap.Add(levelModel.Id, levelModel);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to create LevelModel for level {levelConfig.levelId}: {ex.Message}");
+                // Продолжаем загрузку остальных уровней
+            }
+        }
+    }
+
+    public LevelModel GetLevel(int id)
+    {
+        if (!_isInitialized)
+        {
+            throw new InvalidOperationException("LevelRepository not initialized. Call InitializeAsync first.");
+        }
+
+        if (!_levelMap.TryGetValue(id, out var level))
+        {
+            throw new ArgumentException($"Level {id} not found!");
+        }
+
+        return level;
+    }
+
+    public bool HasLevel(int id)
+    {
+        return _isInitialized && _levelMap.ContainsKey(id);
+    }
+
+    public int GetLevelCount()
+    {
+        return _isInitialized ? _levelMap.Count : 0;
+    }
+
+    public int[] GetAvailableLevelIds()
+    {
+        if (!_isInitialized) return new int[0];
+
+        var ids = new int[_levelMap.Count];
+        _levelMap.Keys.CopyTo(ids, 0);
+        return ids;
+    }
+
+    private void OnDestroy()
+    {
+        OnLevelsLoaded = null;
+        OnLoadError = null;
+    }
+}
+using System;
+using UnityEngine;
+using UnityEngine.Events;
+
+public class ColorPickerModel : MonoBehaviour, IColorProvider
+{
+    [SerializeField] private PixelColorType _defaultColor;
+
+    private PixelColorType _selectedColor;
+
+    public PixelColorType SelectedColor => _selectedColor;
+
+    public UnityEvent OnColorChanged;
+    public UnityEvent OnModelInitialized;
+
+    event Action<PixelColorType> IColorProvider.OnColorChanged
+    {
+        add
+        {
+            throw new NotImplementedException();
+        }
+
+        remove
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    private void Start()
+    {
+        ChangeSelectedColor(_defaultColor);
+        OnModelInitialized.Invoke();
+    }
+
+    public void ChangeSelectedColor(PixelColorType newColor)
+    {
+        if (_selectedColor != newColor)
+        {
+            _selectedColor = newColor;
+            OnColorChanged.Invoke();
+        }
+        Debug.Log(_selectedColor);
+    }
+}
+using System;
+using UnityEngine;
+
+public class LevelModel
+{
+    public int Id { get; private set; }
+    public int Rows { get; private set; }
+    public int Cols { get; private set; }
+    public PixelColorType[,] SolutionPixels { get; private set; }
+
+    // Дополнительные свойства для расширения функциональности
+    public string Name { get; private set; }
+    public int Difficulty { get; private set; }
+    public bool IsCompleted { get; private set; }
+
+    public LevelModel(int id, int rows, int cols, PixelColorType[,] solutionPixels, string name = null, int difficulty = 1)
+    {
+        if (id < 0) throw new ArgumentException("Level ID must be non-negative", nameof(id));
+        if (rows <= 0) throw new ArgumentException("Rows must be positive", nameof(rows));
+        if (cols <= 0) throw new ArgumentException("Cols must be positive", nameof(cols));
+        if (solutionPixels == null) throw new ArgumentNullException(nameof(solutionPixels));
+        if (solutionPixels.GetLength(0) != rows || solutionPixels.GetLength(1) != cols)
+            throw new ArgumentException("Solution pixels dimensions don't match provided rows and cols");
+
+        Id = id;
+        Rows = rows;
+        Cols = cols;
+        SolutionPixels = (PixelColorType[,])solutionPixels.Clone(); // Создаем копию для безопасности
+        Name = name ?? $"Level {id}";
+        Difficulty = Mathf.Clamp(difficulty, 1, 10);
+        IsCompleted = false;
+    }
+
+    public LevelModel(LevelConfig config) : this(
+        config.levelId,
+        config.gridSize.rows,
+        config.gridSize.cols,
+        config.colors)
+    {
+        // Можно добавить дополнительные поля из config если они есть
+    }
+
+    public PixelColorType GetSolutionColor(int row, int col)
+    {
+        if (!IsValidPosition(row, col))
+        {
+            Debug.LogWarning($"Invalid position requested: ({row}, {col}) for level {Id}");
+            return PixelColorType.White;
+        }
+
+        return SolutionPixels[row, col];
+    }
+
+    public bool IsValidPosition(int row, int col)
+    {
+        return row >= 0 && row < Rows && col >= 0 && col < Cols;
+    }
+
+    public void SetCompleted(bool completed)
+    {
+        IsCompleted = completed;
+    }
+
+    // Метод для проверки правильности решения
+    public bool CheckSolution(PixelColorType[,] playerField)
+    {
+        if (playerField == null) return false;
+        if (playerField.GetLength(0) != Rows || playerField.GetLength(1) != Cols) return false;
+
+        for (int row = 0; row < Rows; row++)
+        {
+            for (int col = 0; col < Cols; col++)
+            {
+                if (playerField[row, col] != SolutionPixels[row, col])
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Подсчет процента выполнения
+    public float GetCompletionPercentage(PixelColorType[,] playerField)
+    {
+        if (playerField == null) return 0f;
+        if (playerField.GetLength(0) != Rows || playerField.GetLength(1) != Cols) return 0f;
+
+        int correctPixels = 0;
+        int totalPixels = Rows * Cols;
+
+        for (int row = 0; row < Rows; row++)
+        {
+            for (int col = 0; col < Cols; col++)
+            {
+                if (playerField[row, col] == SolutionPixels[row, col])
+                    correctPixels++;
+            }
+        }
+
+        return totalPixels > 0 ? (float)correctPixels / totalPixels : 0f;
+    }
+
+    public override string ToString()
+    {
+        return $"Level {Id}: {Name} ({Rows}x{Cols}), Difficulty: {Difficulty}, Completed: {IsCompleted}";
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is LevelModel other && Id == other.Id;
+    }
+
+    public override int GetHashCode()
+    {
+        return Id.GetHashCode();
+    }
+}
+using System;
+using UnityEngine;
+
+public class PixelFieldModel : IPixelFieldModel
+{
+    private int _rows;
+    private int _cols;
+    private PixelModel[,] _pixelsData;
+
+    public int Rows => _rows;
+    public int Cols => _cols;
+
+    public event Action<PixelData> OnPixelChanged;
+    public event Action OnFieldCleared;
+
+    //public event Action<FieldData> OnFieldInitialized;
+
+    public PixelFieldModel(int rows, int cols)
+    {
+        Initialize(rows, cols);
+    }
+
+    public void Initialize(int rows, int cols)
+    {
+        if (rows <= 0 || cols <= 0)
+            throw new ArgumentException("Rows and cols must be positive");
+
+        _rows = rows;
+        _cols = cols;
+        _pixelsData = new PixelModel[_rows, _cols];
+
+        // Заполняем белым цветом по умолчанию
+        FillWithColor(PixelColorType.White);
+
+        UnityEngine.Debug.Log($"Модель поля заинитилась");
+    }
+
+    public void SetColor(int row, int col, PixelColorType color)
+    {
+        if (!IsValidPosition(row, col))
+        {
+            UnityEngine.Debug.LogWarning($"Invalid position: ({row}, {col})");
+            return;
+        }
+
+        if (_pixelsData[row, col].Color == color)
+            return; // Избегаем лишних уведомлений
+
+        _pixelsData[row, col].SetColor(color);
+        OnPixelChanged?.Invoke(new PixelData(new Vector2Int(row, col), color));
+    }
+
+    public PixelColorType GetColor(int row, int col)
+    {
+        return IsValidPosition(row, col) ? _pixelsData[row, col].Color : PixelColorType.Black;
+    }
+
+    public void FillWithColor(PixelColorType color)
+    {
+        for (int row = 0; row < _rows; row++)
+        {
+            for (int col = 0; col < _cols; col++)
+            {
+                _pixelsData[row, col] = new PixelModel(new Vector2Int(row, col));
+            }
+        }
+    }
+
+    public void Clear()
+    {
+        FillWithColor(PixelColorType.White);
+    }
+
+    private bool IsValidPosition(int row, int col)
+    {
+        return row >= 0 && row < _rows && col >= 0 && col < _cols;
+    }
+
+    bool IPixelFieldModel.IsValidPosition(int row, int col)
+    {
+        return IsValidPosition(row, col);
+    }
+    public PixelModel[,] GetPixels()
+    {
+        return _pixelsData;
+    }
+}
+using UnityEngine;
+using UnityEngine.UI;
+
+public class ColorPickerView : MonoBehaviour
+{
+    [SerializeField] private ColorPickerModel _model; // ссылка на модель цветового пикера
+
+    [SerializeField] private Image _colorCircle;   // сам кружок с цветом
+    [SerializeField] private Image _selectionRing; // кольцо выделения
+
+    [SerializeField] private PixelColorType _colorType;
+
+    public PixelColorType ColorType => _colorType;
+
+    private void Awake()
+    {
+        _model.OnModelInitialized.AddListener(Initialize);
+        _model.OnColorChanged.AddListener(UpdateSelectedColor);
+    }
+    private void Initialize()
+    {
+        _colorCircle.color = ColorData.ColorMap[_colorType];
+        UpdateSelectedColor();
+        print("ColorPickerView is Initialized");
+    }
+
+    public void UpdateSelectedColor()
+    {
+        if (_model.SelectedColor == _colorType)
+        {
+            _selectionRing.gameObject.SetActive(true);
+        }
+        else
+        {
+            _selectionRing.gameObject.SetActive(false);
+        }
+    }
+   
+}
+using System;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class PixelFieldView : MonoBehaviour, IPixelFieldView
+{
+    [SerializeField] private GameObject _pixelPrefab;
+    [SerializeField] Transform _pixelContainer;
+
+    private PixelView[,] _pixelViews;
+
+
+    public void ClearField()
+    {
+        if( _pixelViews != null)
+        {
+            foreach (var pixelView in _pixelViews)
+            {
+                Destroy(pixelView.gameObject);
+            }
+
+        }
+    }
+
+    public void ShowFieldTemporarily(FieldData fieldData, float duration, Action onComplete = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void InitializeField(FieldData fieldData)
+    {
+        ClearField();
+
+        int rows = fieldData.Rows;
+        int cols = fieldData.Cols;
+        _pixelViews = new PixelView[rows, cols];
+
+        // Настройка грида
+        var gridLayout = _pixelContainer.GetComponent<GridLayoutGroup>();
+        if (gridLayout != null)
+        {
+            var rect = _pixelContainer.GetComponent<RectTransform>().rect;
+            gridLayout.cellSize = new Vector2(
+                rect.width / cols,
+                rect.height / rows
+            );
+        }
+
+        // Создание пикселей
+        for (int row = 0; row < rows; row++)
+        {
+            for (int col = 0; col < cols; col++)
+            {
+                var pixelView = Instantiate(_pixelPrefab, _pixelContainer);
+                var view = pixelView.GetComponent<PixelView>();
+                view.Init(row, col, PixelColorType.White);
+                _pixelViews[row, col] = view;
+            }
+        }
+    }
+    
+    
+
+    private void UpdatePixel(int row, int col, PixelColorType color)
+    {
+        if (_pixelViews[row, col] != null)
+        {
+            _pixelViews[row, col].SetColor(color);
+        }
+    }
+
+    private void UpdatePixel(PixelData pixelData)
+    {
+        var position = pixelData.Position;
+        UpdatePixel(position.x, position.y, pixelData.Color);
+    }
+
+    void IPixelFieldView.UpdatePixel(PixelData pixelData)
+    {
+        UpdatePixel(pixelData);
+    }
+}

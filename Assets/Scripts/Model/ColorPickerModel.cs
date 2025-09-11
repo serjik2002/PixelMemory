@@ -1,35 +1,17 @@
 using System;
-using UnityEngine;
-using UnityEngine.Events;
 
-public class ColorPickerModel : MonoBehaviour, IColorProvider
+public class ColorPickerModel : IColorProvider
 {
-    [SerializeField] private PixelColorType _defaultColor;
-
     private PixelColorType _selectedColor;
 
     public PixelColorType SelectedColor => _selectedColor;
 
-    public UnityEvent OnColorChanged;
-    public UnityEvent OnModelInitialized;
+    // Правильная реализация события
+    public event Action<PixelColorType> OnColorChanged;
 
-    event Action<PixelColorType> IColorProvider.OnColorChanged
+    public ColorPickerModel(PixelColorType defaultColor = PixelColorType.White)
     {
-        add
-        {
-            throw new NotImplementedException();
-        }
-
-        remove
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    private void Start()
-    {
-        ChangeSelectedColor(_defaultColor);
-        OnModelInitialized.Invoke();
+        _selectedColor = defaultColor;
     }
 
     public void ChangeSelectedColor(PixelColorType newColor)
@@ -37,8 +19,8 @@ public class ColorPickerModel : MonoBehaviour, IColorProvider
         if (_selectedColor != newColor)
         {
             _selectedColor = newColor;
-            OnColorChanged.Invoke();
+            OnColorChanged?.Invoke(newColor);
+            UnityEngine.Debug.Log($"Selected color changed to: {newColor}");
         }
-        Debug.Log(_selectedColor);
     }
 }

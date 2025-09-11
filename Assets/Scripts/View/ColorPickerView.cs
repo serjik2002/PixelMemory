@@ -1,40 +1,124 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ColorPickerView : MonoBehaviour
 {
-    [SerializeField] private ColorPickerModel _model; // ссылка на модель цветового пикера
+    [Header("UI Components")]
+    [SerializeField] private Image _colorCircle;
+    [SerializeField] private Image _selectionRing;
+    [SerializeField] private Button _button;
 
-    [SerializeField] private Image _colorCircle;   // сам кружок с цветом
-    [SerializeField] private Image _selectionRing; // кольцо выделения
-
+    [Header("Settings")]
     [SerializeField] private PixelColorType _colorType;
+
+    private IColorProvider _colorProvider;
 
     public PixelColorType ColorType => _colorType;
 
     private void Awake()
     {
-        _model.OnModelInitialized.AddListener(Initialize);
-        _model.OnColorChanged.AddListener(UpdateSelectedColor);
-    }
-    private void Initialize()
-    {
-        _colorCircle.color = ColorData.ColorMap[_colorType];
-        UpdateSelectedColor();
-        print("ColorPickerView is Initialized");
     }
 
-    public void UpdateSelectedColor()
+    private void Start()
     {
-        if (_model.SelectedColor == _colorType)
+        // Находим провайдер цветов на сцене
+        var controller = FindAnyObjectByType<ColorPickerController>();
+        if (controller != null)
         {
-            _selectionRing.gameObject.SetActive(true);
+            Initialize(controller.ColorProvider);
         }
         else
         {
-            _selectionRing.gameObject.SetActive(false);
+            Debug.LogError("ColorPickerController not found on scene!");
+        }
+        SetupButton();
+    }
+
+    public void Initialize(IColorProvider colorProvider)
+    {
+        _colorProvider = colorProvider;
+
+        // Подписываемся на изменения
+        _colorProvider.OnColorChanged += UpdateSelectionVisual;
+
+        // Устанавливаем цвет круга
+        UpdateColorDisplay();
+
+        // Обновляем визуал выделения
+        UpdateSelectionVisual(_colorProvider.SelectedColor);
+
+        Debug.Log($"ColorPickerView for {_colorType} initialized");
+    }
+
+    private void SetupButton()
+    {
+        if (_button == null)
+            _button = GetComponent<Button>();
+        _button.onClick.AddListener(OnButtonClick);
+
+        //if (_button != null)
+        //{
+            
+        //}
+        //else
+        //{
+        //    Debug.LogError($"Button component not found on {gameObject.name}");
+        //}
+    }
+
+    private void UpdateColorDisplay()
+    {
+        if (_colorCircle != null && ColorData.ColorMap.ContainsKey(_colorType))
+        {
+            _colorCircle.color = ColorData.ColorMap[_colorType];
         }
     }
-   
+
+    private void UpdateSelectionVisual(PixelColorType selectedColor)
+    {
+        bool isSelected = selectedColor == _colorType;
+
+        if (_selectionRing != null)
+        {
+            _selectionRing.gameObject.SetActive(isSelected);
+        }
+
+        // Можно добавить дополнительные эффекты выделения
+        if (isSelected)
+        {
+            transform.localScale = Vector3.one * 1.1f;
+        }
+        else
+        {
+            transform.localScale = Vector3.one;
+        }
+    }
+
+    private void OnButtonClick()
+    {
+        // Находим контроллер и меняем цвет
+        var controller = FindAnyObjectByType<ColorPickerController>();
+        if (controller != null)
+        {
+            controller.ChangeColor(_colorType);
+        }
+        else
+        {
+            Debug.LogError("ColorPickerController not found!");
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Отписываемся от событий
+        if (_colorProvider != null)
+        {
+            _colorProvider.OnColorChanged -= UpdateSelectionVisual;
+        }
+
+        if (_button != null)
+        {
+            _button.onClick.RemoveListener(OnButtonClick);
+        }
+    }
 }

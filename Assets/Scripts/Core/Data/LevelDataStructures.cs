@@ -20,26 +20,8 @@ public class LevelConfig
 {
     public int levelId;
     public GridSize gridSize;
-    public int[] colors; // Изменено с PixelColorType[,] на int[] для корректной JSON сериализации
+    public PixelColorType[,] colors; // Изменено с PixelColorType[,] на int[] для корректной JSON сериализации
 
-    // Метод для конвертации одномерного массива в двумерный
-    public PixelColorType[,] GetColorsAs2D()
-    {
-        if (colors == null || colors.Length != gridSize.rows * gridSize.cols)
-        {
-            throw new InvalidOperationException("Colors array size doesn't match grid dimensions");
-        }
-
-        var result = new PixelColorType[gridSize.rows, gridSize.cols];
-        for (int i = 0; i < colors.Length; i++)
-        {
-            int row = i / gridSize.cols;
-            int col = i % gridSize.cols;
-            result[row, col] = (PixelColorType)colors[i];
-        }
-
-        return result;
-    }
 }
 
 public enum PixelColorType

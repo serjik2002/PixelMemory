@@ -5,7 +5,7 @@ public class InputHandler : MonoBehaviour, IInputHandler
 {
     [Header("Dependencies")]
     [SerializeField] private IRaycastService _raycastService;
-    [SerializeField] private IColorProvider _colorProvider;
+    [SerializeField] private ColorPickerController _colorPickerController;
 
     [Header("Settings")]
     [SerializeField] private bool _isEnabled = true;
@@ -13,67 +13,95 @@ public class InputHandler : MonoBehaviour, IInputHandler
     public event Action<Vector2Int, PixelColorType> OnPixelPaintRequested;
     public event Action<Vector2Int> OnPixelHover;
 
+    private IColorProvider _colorProvider;
     private bool _isDragging;
     private Vector2Int _lastPaintedPixel = new Vector2Int(-1, -1);
 
     private void Awake()
     {
-        // Получаем зависимости если они не заданы
-        if (_raycastService == null)
-            _raycastService = FindObjectOfType<RaycastService>();
+        InitializeDependencies();
+    }
 
-        if (_colorProvider == null)
-            _colorProvider = FindObjectOfType<ColorPickerModel>();
+    private void InitializeDependencies()
+    {
+        // Находим зависимости если не заданы
+        if (_raycastService == null)
+            _raycastService = FindAnyObjectByType<RaycastService>();
+
+        if (_colorPickerController == null)
+            _colorPickerController = FindAnyObjectByType<ColorPickerController>();
+
+        if (_colorPickerController != null)
+            _colorProvider = _colorPickerController.ColorProvider;
     }
 
     private void Update()
     {
         if (!_isEnabled) return;
 
-        HandleMouseInput();
-        HandleHoverInput();
+        HandlePointerInput();
     }
 
-    private void HandleMouseInput()
+    private void HandlePointerInput()
     {
-        bool isMouseDown = Input.GetMouseButtonDown(0);
-        bool isMouseHeld = Input.GetMouseButton(0);
-        bool isMouseUp = Input.GetMouseButtonUp(0);
+#if UNITY_EDITOR || UNITY_STANDALONE
+        bool isDown = Input.GetMouseButtonDown(0);
+        bool isHeld = Input.GetMouseButton(0);
+        bool isUp = Input.GetMouseButtonUp(0);
+        Vector2 position = Input.mousePosition;
+#else
+        if (Input.touchCount == 0) return;
 
-        if (isMouseDown)
+        var touch = Input.GetTouch(0);
+        bool isDown = touch.phase == TouchPhase.Began;
+        bool isHeld = touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary;
+        bool isUp = touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled;
+        Vector2 position = touch.position;
+#endif
+
+        if (isDown)
         {
             _isDragging = true;
             _lastPaintedPixel = new Vector2Int(-1, -1);
-            TryPaintPixel();
+            HandlePointerDown(position);
         }
-        else if (isMouseHeld && _isDragging)
+        else if (isHeld && _isDragging)
         {
-            TryPaintPixel();
+            TryPaintPixel(position);
         }
-        else if (isMouseUp)
+        else if (isUp)
         {
             _isDragging = false;
             _lastPaintedPixel = new Vector2Int(-1, -1);
         }
     }
 
-    private void HandleHoverInput()
+    private void HandlePointerDown(Vector2 pointerPosition)
     {
-        if (_isDragging) return; // Не отправляем hover события во время рисования
+        // Сначала проверяем, не кликнули ли по color picker'у
+        if (TrySelectColor(pointerPosition))
+            return;
 
-        if (_raycastService.TryGetComponentUnderMouse<Pixel>(out var pixel))
-        {
-            OnPixelHover?.Invoke(pixel.Position);
-        }
+        // Если не по color picker'у, то пытаемся покрасить пиксель
+        TryPaintPixel(pointerPosition);
     }
 
-    private void TryPaintPixel()
+    private bool TrySelectColor(Vector2 pointerPosition)
     {
-        if (_raycastService.TryGetComponentUnderMouse<Pixel>(out var pixel))
+        if (_raycastService.TryGetComponentUnderPointer<ColorPickerView>(pointerPosition, out var colorView))
+        {
+            _colorPickerController?.ChangeColor(colorView.ColorType);
+            return true;
+        }
+        return false;
+    }
+
+    private void TryPaintPixel(Vector2 pointerPosition)
+    {
+        if (_raycastService.TryGetComponentUnderPointer<PixelView>(pointerPosition, out var pixel))
         {
             var position = pixel.Position;
 
-            // Избегаем повторного закрашивания того же пикселя при перетаскивании
             if (_isDragging && position == _lastPaintedPixel)
                 return;
 
@@ -93,15 +121,8 @@ public class InputHandler : MonoBehaviour, IInputHandler
         }
     }
 
-    // Дополнительные методы для настройки поведения
-    public void EnableDragPainting(bool enable)
-    {
-        // Можно добавить отдельную настройку для рисования перетаскиванием
-    }
-
     private void OnDestroy()
     {
-        // Очищаем события при уничтожении
         OnPixelPaintRequested = null;
         OnPixelHover = null;
     }

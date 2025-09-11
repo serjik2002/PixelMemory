@@ -14,30 +14,22 @@ public class RaycastService : MonoBehaviour, IRaycastService
     {
         // јвтоматически находим компоненты если они не заданы
         if (_raycaster == null)
-            _raycaster = FindObjectOfType<GraphicRaycaster>();
+            _raycaster = FindAnyObjectByType<GraphicRaycaster>();
 
         if (_eventSystem == null)
-            _eventSystem = FindObjectOfType<EventSystem>();
+            _eventSystem = FindAnyObjectByType<EventSystem>();
     }
 
-    public T GetComponentUnderMouse<T>() where T : Component
-    {
-        if (TryGetComponentUnderMouse<T>(out var component))
-            return component;
 
-        return null;
-    }
-
-    public bool TryGetComponentUnderMouse<T>(out T component) where T : Component
+    public bool TryGetComponentUnderPointer<T>(Vector2 screenPosition, out T component) where T : Component
     {
         component = null;
-
         if (_raycaster == null || _eventSystem == null)
             return false;
 
         var pointerEventData = new PointerEventData(_eventSystem)
         {
-            position = Input.mousePosition
+            position = screenPosition
         };
 
         _raycastResults.Clear();
@@ -51,6 +43,7 @@ public class RaycastService : MonoBehaviour, IRaycastService
 
         return false;
     }
+
 
     // ƒополнительный метод дл€ получени€ всех компонентов определенного типа под мышью
     public List<T> GetAllComponentsUnderMouse<T>() where T : Component

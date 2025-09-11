@@ -1,5 +1,4 @@
 using System;
-using UnityEngine;
 
 public interface IPixelFieldModel
 {
@@ -12,4 +11,5 @@ public interface IPixelFieldModel
     PixelColorType GetColor(int row, int col);
     void Clear();
     bool IsValidPosition(int row, int col);
+    PixelModel[,] GetPixels();
 }

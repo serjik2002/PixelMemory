@@ -1,37 +1,63 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
-using System.Collections.Generic;
 
 public class ColorPickerController : MonoBehaviour
 {
-    [SerializeField] private ColorPickerModel _model;
-    [SerializeField] private GraphicRaycaster _raycaster;
-    [SerializeField] private EventSystem _eventSystem;
+    [Header("Settings")]
+    [SerializeField] private PixelColorType _defaultColor = PixelColorType.White;
 
-    private void Update()
+    private ColorPickerModel _model;
+
+    // Свойство для доступа к модели извне
+    public IColorProvider ColorProvider => _model;
+
+    private void Awake()
     {
-        if (Input.GetMouseButtonDown(0))
-            TrySelectColor();
+        InitializeModel();
     }
 
-    private void TrySelectColor()
+    private void InitializeModel()
     {
-        var pointerEventData = new PointerEventData(_eventSystem)
-        {
-            position = Input.mousePosition
-        };
+        _model = new ColorPickerModel(_defaultColor);
 
-        var results = new List<RaycastResult>();
-        _raycaster.Raycast(pointerEventData, results);
+        // Подписываемся на изменения для дополнительной логики если нужно
+        _model.OnColorChanged += HandleColorChanged;
 
-        foreach (var result in results)
+        Debug.Log("ColorPickerController initialized");
+    }
+
+    private void HandleColorChanged(PixelColorType newColor)
+    {
+        // Здесь можно добавить дополнительную логику:
+        // - звуковые эффекты
+        // - аналитику
+        // - сохранение выбранного цвета
+        Debug.Log($"Color changed in controller: {newColor}");
+    }
+
+    // Публичный метод для изменения цвета (вызывается из UI)
+    public void ChangeColor(PixelColorType newColor)
+    {
+        _model.ChangeSelectedColor(newColor);
+    }
+
+    // Метод для вызова из Unity Events (принимает int)
+    public void ChangeColor(int colorIndex)
+    {
+        if (System.Enum.IsDefined(typeof(PixelColorType), colorIndex))
         {
-            if (result.gameObject.TryGetComponent(out ColorPickerView colorView))
-            {
-                _model.ChangeSelectedColor(colorView.ColorType);
-                break;
-            }
+            _model.ChangeSelectedColor((PixelColorType)colorIndex);
+        }
+        else
+        {
+            Debug.LogError($"Invalid color index: {colorIndex}");
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (_model != null)
+        {
+            _model.OnColorChanged -= HandleColorChanged;
         }
     }
 }

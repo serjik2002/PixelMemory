@@ -1,192 +1,82 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PixelFieldView : MonoBehaviour
+public class PixelFieldView : MonoBehaviour, IPixelFieldView
 {
     [SerializeField] private GameObject _pixelPrefab;
-    [SerializeField] private Transform _pixelContainer;
+    [SerializeField] Transform _pixelContainer;
 
-    private Pixel[,] _pixels;
-    private int _currentRows, _currentCols;
+    private PixelView[,] _pixelViews;
 
-    private Coroutine _showFieldCoroutine;
-
-    public void InitializeField(FieldData fieldData)
-    {
-        Debug.Log($"Вьюшка поля");
-        // Очищаем предыдущее поле если оно было
-        ClearField();
-
-        _currentRows = fieldData.Rows;
-        _currentCols = fieldData.Cols;
-        _pixels = new Pixel[_currentRows, _currentCols];
-
-        SetupGridLayout();
-        CreatePixels(fieldData.Colors);
-
-       
-    }
-
-    public void ShowFieldTemporarily(FieldData levelFieldData, float duration, System.Action onComplete = null)
-    {
-        if (_showFieldCoroutine != null)
-        {
-            StopCoroutine(_showFieldCoroutine);
-        }
-
-        _showFieldCoroutine = StartCoroutine(ShowFieldCoroutine(levelFieldData, duration, onComplete));
-    }
-
-    private IEnumerator ShowFieldCoroutine(FieldData levelFieldData, float duration, System.Action onComplete)
-    {
-        // Сохраняем текущее состояние пикселей (из PixelFieldModel)
-        var currentFieldState = SaveCurrentFieldState();
-
-        // Показываем поле из LevelModel
-        UpdateFieldWithData(levelFieldData);
-
-        // Ждем указанное время
-        yield return new WaitForSeconds(duration);
-
-        // Возвращаем обратно поле из PixelFieldModel
-        RestoreFieldState(currentFieldState);
-
-        // Вызываем колбэк если он есть
-        onComplete?.Invoke();
-
-        _showFieldCoroutine = null;
-    }
-
-    private PixelColorType[,] SaveCurrentFieldState()
-    {
-        if (_pixels == null) return null;
-
-        var savedState = new PixelColorType[_currentRows, _currentCols];
-
-        for (int row = 0; row < _currentRows; row++)
-        {
-            for (int col = 0; col < _currentCols; col++)
-            {
-                if (_pixels[row, col] != null)
-                {
-                    savedState[row, col] = _pixels[row, col].GetPixelColor(); // Предполагаю такой метод существует
-                }
-            }
-        }
-
-        return savedState;
-    }
-
-    private void UpdateFieldWithData(FieldData fieldData)
-    {
-        for (int row = 0; row < fieldData.Rows && row < _currentRows; row++)
-        {
-            for (int col = 0; col < fieldData.Cols && col < _currentCols; col++)
-            {
-                if (_pixels[row, col] != null)
-                {
-                    _pixels[row, col].SetPixelColor(fieldData.Colors[row, col]);
-                }
-            }
-        }
-    }
-
-    private void RestoreFieldState(PixelColorType[,] savedState)
-    {
-        if (savedState == null) return;
-
-        for (int row = 0; row < _currentRows; row++)
-        {
-            for (int col = 0; col < _currentCols; col++)
-            {
-                if (_pixels[row, col] != null)
-                {
-                    _pixels[row, col].SetPixelColor(savedState[row, col]);
-                }
-            }
-        }
-    }
-
-    public void UpdatePixel(PixelData pixelData)
-    {
-        var pos = pixelData.Position;
-        if (IsValidPixel(pos.x, pos.y))
-        {
-            _pixels[pos.x, pos.y].SetPixelColor(pixelData.Color);
-        }
-    }
-
-    public void UpdateMultiplePixels(IEnumerable<PixelData> pixelDataList)
-    {
-        foreach (var pixelData in pixelDataList)
-        {
-            UpdatePixel(pixelData);
-        }
-    }
-
-    private void SetupGridLayout()
-    {
-        var gridLayoutGroup = GetComponent<GridLayoutGroup>();
-        var rectTransform = GetComponent<RectTransform>();
-
-        if (gridLayoutGroup == null || rectTransform == null) return;
-
-        var fieldSize = rectTransform.rect.size;
-        var cellSize = new Vector2(
-            fieldSize.x / _currentCols,
-            fieldSize.y / _currentRows
-        );
-
-        gridLayoutGroup.cellSize = cellSize;
-    }
-
-    private void CreatePixels(PixelColorType[,] colors)
-    {
-        for (int row = 0; row < _currentRows; row++)
-        {
-            for (int col = 0; col < _currentCols; col++)
-            {
-                var pixelObject = Instantiate(_pixelPrefab, _pixelContainer);
-                var pixelComponent = pixelObject.GetComponent<Pixel>();
-
-                pixelComponent.SetPixelPosition(new Vector2Int(row, col));
-                pixelComponent.SetPixelColor(colors[row, col]);
-
-                _pixels[row, col] = pixelComponent;
-            }
-        }
-    }
-
-    private bool IsValidPixel(int row, int col)
-    {
-        return _pixels != null &&
-               row >= 0 && row < _currentRows &&
-               col >= 0 && col < _currentCols &&
-               _pixels[row, col] != null;
-    }
 
     public void ClearField()
     {
-        if (_pixels == null) return;
-
-        for (int row = 0; row < _pixels.GetLength(0); row++)
+        if( _pixelViews != null)
         {
-            for (int col = 0; col < _pixels.GetLength(1); col++)
+            foreach (var pixelView in _pixelViews)
             {
-                if (_pixels[row, col] != null)
-                {
-                    Destroy(_pixels[row, col].gameObject);
-                }
+                Destroy(pixelView.gameObject);
             }
-        }
 
-        _pixels = null;
+        }
     }
 
-    private void OnDestroy()
+    public void ShowFieldTemporarily(FieldData fieldData, float duration, Action onComplete = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void InitializeField(FieldData fieldData)
     {
         ClearField();
+
+        int rows = fieldData.Rows;
+        int cols = fieldData.Cols;
+        _pixelViews = new PixelView[rows, cols];
+
+        // Настройка грида
+        var gridLayout = _pixelContainer.GetComponent<GridLayoutGroup>();
+        if (gridLayout != null)
+        {
+            var rect = _pixelContainer.GetComponent<RectTransform>().rect;
+            gridLayout.cellSize = new Vector2(
+                rect.width / cols,
+                rect.height / rows
+            );
+        }
+
+        // Создание пикселей
+        for (int row = 0; row < rows; row++)
+        {
+            for (int col = 0; col < cols; col++)
+            {
+                var pixelView = Instantiate(_pixelPrefab, _pixelContainer);
+                var view = pixelView.GetComponent<PixelView>();
+                view.Init(row, col, PixelColorType.White);
+                _pixelViews[row, col] = view;
+            }
+        }
+    }
+    
+    
+
+    private void UpdatePixel(int row, int col, PixelColorType color)
+    {
+        if (_pixelViews[row, col] != null)
+        {
+            _pixelViews[row, col].SetColor(color);
+        }
+    }
+
+    private void UpdatePixel(PixelData pixelData)
+    {
+        var position = pixelData.Position;
+        UpdatePixel(position.x, position.y, pixelData.Color);
+    }
+
+    void IPixelFieldView.UpdatePixel(PixelData pixelData)
+    {
+        UpdatePixel(pixelData);
     }
 }

@@ -1,5 +1,3 @@
-using UnityEngine;
-
 public interface ILevelRepository
 {
     LevelModel GetLevel(int id);
